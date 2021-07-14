@@ -188,14 +188,29 @@ int posix_spawn_on_native(pid_t *restrict res, const char *restrict path,
 	args.envp = envp;
 	pthread_sigmask(SIG_BLOCK, SIGALL_SET, &args.oldmask);
 
-	pid = __clone(child, stack+sizeof stack,
-		CLONE_VM|CLONE_VFORK|SIGCHLD, &args);
-	close(args.p[1]);
+	// original
+	// pid = __clone(child, stack+sizeof stack,
+	// 	CLONE_VM|CLONE_VFORK|SIGCHLD, &args);
+	// close(args.p[1]);
 
-	if (pid > 0) {
+	// if (pid > 0) {
+	// 	if (read(args.p[0], &ec, sizeof ec) != sizeof ec) ec = 0;
+	// 	else waitpid(pid, &(int){0}, 0);
+	// } else {
+	// 	ec = -pid;
+	// }
+
+	pid = vfork();
+	if (pid == 0) {
+		// In child, this function will not return if success.
+		ec = child(&args);
+	} else if (pid > 0) {
+		// return as parent
+		close(args.p[1]);
 		if (read(args.p[0], &ec, sizeof ec) != sizeof ec) ec = 0;
 		else waitpid(pid, &(int){0}, 0);
 	} else {
+		// error
 		ec = -pid;
 	}
 
@@ -235,12 +250,12 @@ int posix_spawn(pid_t *restrict res, const char *restrict path,
     const posix_spawnattr_t *restrict attr,
     char *const argv[restrict], char *const envp[restrict])
 {
-#ifdef __OCCLUM
-    if (IS_RUNNING_ON_OCCLUM) {
-        return posix_spawn_on_occlum(res, path, fa, attr, argv, envp);
-    } else {
-        return posix_spawn_on_native(res, path, fa, attr, argv, envp);
-    }
-#endif
+// #ifdef __OCCLUM
+//     if (IS_RUNNING_ON_OCCLUM) {
+//         return posix_spawn_on_occlum(res, path, fa, attr, argv, envp);
+//     } else {
+//         return posix_spawn_on_native(res, path, fa, attr, argv, envp);
+//     }
+// #endif
     return posix_spawn_on_native(res, path, fa, attr, argv, envp);
 }
